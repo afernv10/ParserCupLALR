@@ -1,0 +1,102 @@
+package pl5;
+/*
+* Autor: Ander José Fernández Vega
+* Practica: P5 - LALR con CUP
+*/
+
+import java_cup.runtime.*;
+import java.io.*;
+import java.util.List;
+import java.util.LinkedList;
+
+parser code {:
+public static void main(String[] argv){
+	if (argv.length == 0) {
+		      System.out.println("Uso : java Parser  <inputfile)>");
+		    }
+	else{
+	try {
+		java.io.FileInputStream stream = new java.io.FileInputStream(argv[0]);
+	    java.io.Reader reader = new java.io.InputStreamReader(stream);
+		Scanner analizadorLexico= new Yylex(reader);
+		Parser parserObj = new Parser();
+		parserObj.setScanner(analizadorLexico);
+		parserObj.parse();
+		}
+		catch(Exception x) {
+		System.out.println("Error fatal.");
+		}
+	}
+}
+
+// SYNTAX ERRORs
+public void syntax_error(Symbol cur_token){
+	String msg="[Parser] Error de sintaxis: '"+
+		symbl_name_from_id(cur_token.sym)+
+		"' en línea "+cur_token.left+", columna "+cur_token.right+"\n";
+	List<Integer> list_of_ids = expected_token_ids();
+	LinkedList<String> list = new LinkedList<String>();
+	for (Integer token_id : list_of_ids)
+		list.add(symbl_name_from_id(token_id));
+	msg += "\tTipos de tokens esperados: " + list +"\n";
+	System.out.println(msg);
+}
+
+:};
+
+
+/*Inicializacion del analizador lexico si procede*/
+/* Con JFlex esto no es necesario */
+//init with {: s.init(); :};
+/*Siguiente token al lexico*/
+//scan with {: return this.getScanner().next_token(); :};
+
+/*Terminales tokens que puede devolver el lexico*/
+terminal SEMICOLON, PLUS, MINUS, TIMES, DIV, POW, SQRT, LEFT_BRACKET, RIGHT_BRACKET, UPLUS, UMINUS;
+
+/*Terminales con atributo*/
+terminal Float FLOAT;
+
+/* No terminales sin atributo*/
+non terminal listaexpr;
+
+/* No terminales con atributo*/
+non terminal  Float expr;
+
+/*Precedencias*/
+precedence left PLUS,MINUS;
+precedence left TIMES,DIV;
+precedence right POW;
+precedence nonassoc SQRT;
+precedence left UMINUS, UPLUS;
+
+/*Gramatica*/
+// S-->SE;|e
+// E-->E+E|E-E|E*E|E/E|E^E|sqrt(E)|(E)| ufloat
+listaexpr ::= listaexpr expr:e SEMICOLON {: System.out.println("= " + e); :}
+|
+|error:e {: :} SEMICOLON /* gestión de errores sintácticos */
+;
+expr ::= expr:e1 PLUS expr:e2
+{: RESULT= new Float(e1.floatValue() + e2.floatValue()); :} 
+| expr:e1 MINUS expr:e2
+{: RESULT= new Float(e1.floatValue() - e2.floatValue()); :}
+| expr:e1 TIMES expr:e2 
+{: RESULT= new Float(e1.floatValue() * e2.floatValue()); :}
+| expr:e1 DIV expr:e2
+{: RESULT= new Float(e1.floatValue() / e2.floatValue()); :} 
+| expr:e1 POW expr:e2 
+{: RESULT= new Float(Math.pow(e1.floatValue(), e2.floatValue())); :}
+| SQRT LEFT_BRACKET expr:e RIGHT_BRACKET
+{: RESULT= new Float(Math.sqrt(e.floatValue())); :}
+| FLOAT:n
+{: RESULT=n; :} 
+| MINUS expr:e 
+{: RESULT= new Float(0-e.floatValue()); :} %prec UMINUS
+| PLUS expr:e 
+{: RESULT= new Float(0+e.floatValue()); :} %prec UPLUS
+| LEFT_BRACKET expr:e RIGHT_BRACKET 
+{: RESULT=e; :}
+;
+
+
